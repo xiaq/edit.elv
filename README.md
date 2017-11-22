@@ -1,7 +1,7 @@
 # xiaq's collections of Elvish editor plugins
 
 Here is a collection of editor plugins useful for
-[elvish](https://github.com/elves/elvish), the friendly and expressive Unix
+[Elvish](https://github.com/elves/elvish), the friendly and expressive Unix
 shell.
 
 These scripts always target Elvish HEAD. If they do not work for you, it is
