@@ -4,13 +4,13 @@
 #
 # Usage:
 # use github.com/xiaq/edit.elv/smart-matcher
-# edit:-matcher[''] = $smart-matcher:&match
+# edit:-matcher[''] = $smart-matcher:match~
 
 fn match [seed]{
     inputs = [(all)]
     results = []
     for matcher [
-            $edit:&match-prefix $edit:&match-substr $edit:&match-subseq] {
+            $edit:match-prefix~ $edit:match-substr~ $edit:match-subseq~] {
         results = [(put $@inputs | $matcher $seed)]
         if (or $@results) {
             put $@results
