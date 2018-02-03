@@ -3,8 +3,9 @@
 # smart-case subsequence match.
 #
 # Usage:
+#
 # use github.com/xiaq/edit.elv/smart-matcher
-# edit:-matcher[''] = $smart-matcher:match~
+# smart-matcher:apply
 
 fn match [seed]{
     inputs = [(all)]
@@ -23,4 +24,8 @@ fn match [seed]{
         }
     }
     put $@results
+}
+
+fn apply {
+    edit:-matcher[''] = $match~
 }
