@@ -282,5 +282,5 @@ fn compl [@words]{
 }
 
 fn apply {
-    edit:arg-completer[go] = $compl~
+    edit:completion:arg-completer[go] = $compl~
 }
