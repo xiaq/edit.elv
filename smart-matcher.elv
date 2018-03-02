@@ -27,5 +27,5 @@ fn match [seed]{
 }
 
 fn apply {
-    edit:-matcher[''] = $match~
+    edit:completion:matcher[''] = $match~
 }
