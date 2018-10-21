@@ -25,6 +25,13 @@ fn dec [x]{ - $x 1 }
 fn without [@exclude]{
   each [x]{ if (not (in $x $exclude)) { put $x } }
 }
+fn dirname [p]{
+  if (has-value $p /) {
+    re:replace '/[^/]*$' '' $p
+  } else {
+    put .
+  }
+}
 
 fn has-any-value [xs ps]{
   for p $ps {
@@ -94,7 +101,7 @@ fn repo-path {
 }
 
 # Not declared with fn: the "return" within will exit the calling fn.
-check-doubledash~ = [words]{
+complete-filename-after-doubledash~ = [words]{
   if (has-value $words --) {
     edit:complete-filename $words[-1]
     return
@@ -149,10 +156,34 @@ fn complete-refs [seed &track=$false]{
   }
 }
 
+# TODO(xiaq): Deduplicate results.
+fn complete-files [seed ls-files-opts]{
+  git-cd=(dirname $seed) call-git -c core.quotePath=false \
+    ls-files --exclude-standard $@ls-files-opts | re:replace '/.*$' '' (all)
+}
+
+fn complete-committable-files [seed]{
+  git-cd=(dirname $seed) call-git -c core.quotePath=false \
+    diff-index --name-only --relative HEAD
+}
+
 # Subcommand completers.
 
+fn complete-add [@words]{
+  cur = $words[-1]
+  if (has-prefix $cur --) {
+    complete-flags checkout
+  } else {
+    @ls-files-opts = --others --modified --directory --no-empty-directory
+    if (has-any-value $words[:-1] [-u --update]) {
+      @ls-files-opts = --modified
+    }
+    complete-files $cur $ls-files-opts
+  }
+}
+
 fn complete-checkout [@words]{
-  check-doubledash $words[:-1]
+  complete-filename-after-doubledash $words[:-1]
   cur = $words[-1]
   if (has-prefix $cur --conflict=) {
     put --conflict={diff3 merge}
@@ -166,6 +197,7 @@ fn complete-checkout [@words]{
 }
 
 subcmd-completer = [
+  &add=$complete-add~
   &checkout=$complete-checkout~
 ]
 
