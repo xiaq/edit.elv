@@ -8,11 +8,14 @@
 # * git checkout: flags, refs and filenames after "--"
 # * All other commands fall back to filename completion.
 
+use re
 use str
 
 # Configurations
 
-checkout-dwim = $true
+# When completing "git checkout", whether to propose branches that exist in
+# exactly one remote, which will do an implicit "--track <remote>/<branch>".
+checkout-propose-remote-branch = $true
 
 # General utilities. Maybe some of those should be builtins eventually.
 
@@ -33,17 +36,53 @@ fn has-any-value [xs ps]{
   put $false
 }
 
+fn has-file [path]{ put ?(test -e $path) }
+
 # Completion utilities.
 
 git-dir git-cd repo-path = '' '' '' # Set at the beginning of complete-git.
-
-fn expand-alias [subcmd]{ put $subcmd } # TODO
 
 fn call-git [@a]{
   flags = []
   if (not-eq $git-dir '') { @flags = $@flags --git-dir $git-dir }
   if (not-eq $git-cd '') { @flags = $@flags -C $git-cd }
   git $@flags $@a
+}
+
+fn expand-alias [subcmd]{
+  def = ''
+  try {
+    @def = (call-git config --get alias.$subcmd | re:split '\s+' (all))
+  } except _ {
+    # Not found
+    put $subcmd
+    return
+  }
+  for word $def {
+    if (in $word [gitk !gitk]) {
+      put gitk
+      return
+    } elif (has-prefix $word !) {
+      # Shell command alias, skip
+    } elif (has-prefix $word -) {
+      # Option, skip
+    } elif (has-value $word '=') {
+      # Environment, skip
+    } elif (eq $word git) {
+      # Git itself, skip
+    } elif (eq $word '()') {
+      # Function definition, skip
+    } elif (eq $word :) {
+      # Nop, skip
+    } elif (has-prefix $word "'") {
+      # Opening quote after sh -c, skip
+      # XXX(xiaq): It's not clear how this works.
+    } else {
+      put $word
+      return
+    }
+  }
+  put $subcmd
 }
 
 fn repo-path {
@@ -79,21 +118,29 @@ fn complete-flags [subcmd &extra=[] &exclude=[]]{
 
 @HEADs = HEAD FETCH_HEAD ORIG_HEAD MERGE_HEAD REBASE_HEAD
 
+# TODO(xiaq): Deduplicate. The most common scenerio is that HEAD can appear
+# twice, once from the expansion of HEADs, once from refs/remotes/origin/HEAD.
 fn complete-refs-inner [seed &track=$false]{
-  # TODO: Support &remote
   format = ''
   if (or (eq $seed refs) (has-prefix $seed refs/)) {
-    format = '%(refname)'
+    # The user is spelling out a full refname, so we don't abbreviate.
+    format = refname
   } else {
-    explode $HEADs
-    format = '%(refname:strip=2)'
+    dir = (repo-path)
+    for head $HEADs {
+      if (has-file $dir/$head) { put $head }
+    }
+    format = refname:strip=2
   }
-  call-git for-each-ref --format=$format | without ''
+  call-git for-each-ref --format='%('$format')' | without ''
   if $track {
-    # TODO
+    format = 'refname:strip=3'
+    call-git for-each-ref --format='%('$format')' --sort=$format \
+      'refs/remotes/*/*'{,'/**'} | uniq -u
   }
 }
 
+# TODO(xiaq): Support &remote
 fn complete-refs [seed &track=$false]{
   if (has-prefix $seed '^') {
     put '^'(complete-refs-inner &track=$track)
@@ -112,8 +159,8 @@ fn complete-checkout [@words]{
   } elif (has-prefix $cur --) {
     complete-flags checkout
   } else {
-    track = (and $checkout-dwim \
-                 (has-any-value $words [--track --no-track --no-guess]))
+    track = (and $checkout-propose-remote-branch \
+                 (not (has-any-value $words [--track --no-track --no-guess])))
     complete-refs $cur &track=$track
   }
 }
@@ -174,7 +221,9 @@ fn complete-git [@words]{
     return
   }
 
-  command = (expand-alias $command)
+  if (not (has-subcmd $command)) {
+    command = (expand-alias $command)
+  }
   if (has-subcmd $command) {
     $subcmd-completer[$command] $@words
   } else {
