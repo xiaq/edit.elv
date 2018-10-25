@@ -44,6 +44,7 @@ fn has-any-value [xs ps]{
 }
 
 fn has-file [path]{ put ?(test -e $path) }
+fn has-dir  [path]{ put ?(test -d $path) }
 
 # Completion utilities.
 
@@ -157,14 +158,22 @@ fn complete-refs [seed &track=$false]{
 }
 
 # TODO(xiaq): Deduplicate results.
-fn complete-files [seed ls-files-opts]{
+fn complete-index-file [seed ls-files-opts]{
   git-cd=(dirname $seed) call-git -c core.quotePath=false \
     ls-files --exclude-standard $@ls-files-opts | re:replace '/.*$' '' (all)
 }
 
-fn complete-committable-files [seed]{
+fn complete-committable-file [seed]{
   git-cd=(dirname $seed) call-git -c core.quotePath=false \
     diff-index --name-only --relative HEAD
+}
+
+fn complete-revlist-file [seed]{
+  # TODO
+}
+
+fn complete-remotes {
+  # TODO
 }
 
 # Subcommand completers.
@@ -178,7 +187,50 @@ fn complete-add [@words]{
     if (has-any-value $words[:-1] [-u --update]) {
       @ls-files-opts = --modified
     }
-    complete-files $cur $ls-files-opts
+    complete-index-file $cur $ls-files-opts
+  }
+}
+
+@whitespace-opts = --whitespace={nowarn warn error error-all fix}
+
+fn complete-am [@words]{
+  if (has-dir (repo-path)/rebase-apply ) {
+    put --skip --continue --resolved --abort --quit --show-current-path
+    return
+  }
+
+  cur = $words[-1]
+  if (has-prefix $cur --whitespace=) {
+    put $@whitespace-opts
+  } elif (has-prefix $cur --) {
+    complete-flags am
+  } else {
+    edit:complete-filename $cur
+  }
+}
+
+fn complete-apply [@words]{
+  cur = $words[-1]
+  if (has-prefix $cur --whitespace=) {
+    put $@whitespace-opts
+  } elif (has-prefix $cur --) {
+    complete-flags am
+  } else {
+    edit:complete-filename $cur
+  }
+}
+
+fn complete-archive [@words]{
+  cur = $words[-1]
+  if (has-prefix $cur --format=) {
+    put --format=(git archive --list)
+  } elif (has-prefix $cur --remote=) {
+    put --remote=(complete-remotes)
+  } elif (has-prefix $cur --) {
+    # It's not clear why complete-flags is not used here.
+    put --format= --list --verbose --prefix= --remote= --exec= --output
+  } else {
+    complete-revlist-file $cur
   }
 }
 
@@ -197,8 +249,10 @@ fn complete-checkout [@words]{
 }
 
 subcmd-completer = [
-  &add=$complete-add~
-  &checkout=$complete-checkout~
+  &add=      $complete-add~
+  &am=       $complete-am~
+  &apply=    $complete-apply~
+  &checkout= $complete-checkout~
 ]
 
 fn has-subcmd [subcmd]{ has-key $subcmd-completer $subcmd }
