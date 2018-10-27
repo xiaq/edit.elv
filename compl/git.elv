@@ -137,6 +137,7 @@ do-filename-after-doubledash~ = [words]{
 do-opt~ = [opt @values]{
   if (has-prefix $cur $opt) {
     put $opt$@values
+    return
   }
 }
 
@@ -153,6 +154,13 @@ fn complete-flags [subcmd &extra=[] &exclude=[]]{
     call-git $subcmd --git-completion-helper | str:trim-space (all) | splits ' ' (all)
     explode $extra
   } | without -- $@exclude
+}
+
+do-flags~ = [subcmd &extra=[] &exclude=[]]{
+  if (has-prefix $cur --) {
+    complete-flags $subcmd &extra=$extra &exclude=$exclude
+    return
+  }
 }
 
 @HEADs = HEAD FETCH_HEAD ORIG_HEAD MERGE_HEAD REBASE_HEAD
@@ -245,6 +253,10 @@ fn complete-revlist-file [seed]{
 }
 
 fn complete-remotes {
+  # TODO
+}
+
+fn complete-remote-or-refspec {
   # TODO
 }
 
@@ -457,35 +469,86 @@ mergetools-common = [
   diffuse diffmerge ecmerge emerge kdiff3 meld opendiff tkdiff vimdiff
   gvimdiff xxdiff araxis p4merge bc codecompare]
 
+fn complete-diff [@words]{
+  # TODO
+}
+
 fn complete-difftool [@words]{
   do-filename-after-doubledash $words[:-1]
   do-opt --tool= $@mergetools-common kompare
+  do-flags difftool &extra=[
+    $@diff-common-options --base --cached --ours --theirs --pickaxe-all
+    --pickaxe-regex --relative --staged]
+  complete-revlist-file $cur
+}
 
-  if (has-prefix $cur --) {
-    complete-flags difftool &extra=[
-      $@diff-common-options --base --cached --ours --theirs --pickaxe-all
-      --pickaxe-regex --relative --staged]
-  } else {
-    complete-revlist-file $cur
+fn complete-fetch [@words]{
+  do-opt --recurse-submodules yes on-demand no
+  do-flags fetch
+  complete-remote-or-refspec # TODO
+}
+
+fn complete-format-patch [@words]{
+  do-opt --thread deep shallow
+  do-flags format-patch # The bash completer uses a hardcoded list
+  complete-revlist-file
+}
+
+fn complete-fsck [@words]{
+  do-flags fsck
+  edit:complete-filename $words[-1]
+}
+
+fn complete-grep [@words]{
+  do-filename-after-doubledash $words[:-1]
+  do-flags grep
+  if (or (eq 3 (len $words)) (has-prefix $words[-2] -)) {
+    # complete-symbol # TODO
   }
+  complete-refs $words[-1]
+}
+
+fn complete-help [@words]{
+  do-flags help
+  git --list-cmds=main,nohelpers,alias,list-guide
+  put gitk
+}
+
+fn complete-init [@words]{
+  do-opt --shared= false true umask group all world everybody
+  do-flags init
+  edit:complete-filename $words[-1]
+}
+
+fn complete-ls-files [@words]{
+  do-flags ls-files
+  complete-index-file $words[-1] [--cached]
 }
 
 subcmd-completer = [
-  &add=         $complete-add~
-  &am=          $complete-am~
-  &apply=       $complete-apply~
-  &archive=     $complete-archive~
-  &bisect=      $complete-bisect~
-  &branch=      $complete-branch~
-  &bundle=      $complete-bundle~
-  &checkout=    $complete-checkout~
-  &cherry=      $complete-cherry~
-  &cherry-pick= $complete-cherry-pick~
-  &clean=       $complete-clean~
-  &clone=       $complete-clone~
-  &commit=      $complete-commit~
-  &describe=    $complete-describe~
-  &difftool=    $complete-difftool~
+  &add=          $complete-add~
+  &am=           $complete-am~
+  &apply=        $complete-apply~
+  &archive=      $complete-archive~
+  &bisect=       $complete-bisect~
+  &branch=       $complete-branch~
+  &bundle=       $complete-bundle~
+  &checkout=     $complete-checkout~
+  &cherry=       $complete-cherry~
+  &cherry-pick=  $complete-cherry-pick~
+  &clean=        $complete-clean~
+  &clone=        $complete-clone~
+  &commit=       $complete-commit~
+  &describe=     $complete-describe~
+  &diff=         $complete-diff~
+  &difftool=     $complete-difftool~
+  &fetch=        $complete-fetch~
+  &format-patch= $complete-format-patch~
+  &fsck=         $complete-fsck~
+  &grep=         $complete-grep~
+  &help=         $complete-help~
+  &init=         $complete-init~
+  &ls-files=     $complete-ls-files~
 ]
 
 fn has-subcmd [subcmd]{ has-key $subcmd-completer $subcmd }
