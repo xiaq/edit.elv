@@ -171,6 +171,10 @@ fn complete-refs [seed &track=$false]{
   }
 }
 
+fn complete-heads {
+  call-git for-each-ref --format='%(refname:strip=2)' 'refs/heads/*'{,'/**'}
+}
+
 # Used to complete:
 # <pathspec> of git add
 #
@@ -302,6 +306,38 @@ fn complete-bisect [@words]{
   }
 }
 
+fn complete-branch [@words]{
+  cur = $words[-1]
+
+  opt = --set-upstream-to=
+  if (has-prefix $cur $opt) {
+    put $opt(complete-refs $cur[(count $opt):])
+  } elif (has-prefix $cur --) {
+    complete-flags branch
+  } else {
+    local  = (has-any $words[:-1] [-d --delete -m --move])
+    remote = (has-any $words[:-1] [-r --remotes])
+    if (and $local (not $remote)) {
+      complete-heads
+    } else {
+      complete-refs $cur
+    }
+  }
+}
+
+fn complete-bundle [@words]{
+  n = (count $words)
+  if (eq $n 3) {
+    put create list-heads verify unbundle
+  } elif (eq $n 4) {
+    edit:complete-filename $words[-1]
+  } elif (> $n 4) {
+    if (eq $words[2] create) {
+      complete-revlist-file $words[-1]
+    }
+  }
+}
+
 fn complete-checkout [@words]{
   complete-filename-after-doubledash $words[:-1]
   cur = $words[-1]
@@ -322,6 +358,8 @@ subcmd-completer = [
   &apply=    $complete-apply~
   &archive=  $complete-archive~
   &bisect=   $complete-bisect~
+  &branch=   $complete-branch~
+  &bundle=   $complete-bundle~
   &checkout= $complete-checkout~
 ]
 
