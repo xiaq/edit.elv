@@ -36,14 +36,6 @@ fn without [@exclude]{
   each [x]{ if (not (in $x $exclude)) { put $x } }
 }
 
-fn dirname [p]{
-  if (has-value $p /) {
-    re:replace '/[^/]*$' '' $p
-  } else {
-    put .
-  }
-}
-
 fn dir-file [p]{
   i = (+ 1 (str:last-index $p /)) # i = 0 if there is no / in $p
   put $p[:$i $i':']
@@ -68,10 +60,11 @@ fn has-any [haystack needles]{
 
 git-dir git-cd repo-path = '' '' '' # Set at the beginning of complete-git.
 
-fn call-git [@a]{
+fn call-git [&no-quote=$false @a]{
   flags = []
   if (not-eq $git-dir '') { @flags = $@flags --git-dir $git-dir }
   if (not-eq $git-cd '') { @flags = $@flags -C $git-cd }
+  if $no-quote { @flags = $@flags -c core.quotePath=false }
   git $@flags $@a
 }
 
@@ -183,14 +176,14 @@ fn complete-refs [seed &track=$false]{
 #
 # TODO(xiaq): This doesn't support the signature syntax of pathspec.
 fn complete-index-file [seed ls-files-opts]{
-  git-cd=(dirname $seed) call-git -c core.quotePath=false ls-files \
-      --exclude-standard $@ls-files-opts |
-    each [p]{ re:replace '/.*$' '' $p} | dedup
+  dir _ = (dir-file $seed)
+  git-cd=$dir call-git &no-quote ls-files --exclude-standard $@ls-files-opts |
+    each [p]{ re:replace '/.*$' '' $p} | dedup | put $dir(all)
 }
 
 fn complete-committable-file [seed]{
-  git-cd=(dirname $seed) call-git -c core.quotePath=false \
-    diff-index --name-only --relative HEAD
+  dir _ = (dir-file $seed)
+  git-cd=$dir call-git &no-quote diff-index --name-only --relative HEAD
 }
 
 # Used to complete:
