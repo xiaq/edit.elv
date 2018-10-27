@@ -49,14 +49,19 @@ fn dir-file [p]{
   put $p[:$i $i':']
 }
 
-fn has-any-value [xs ps]{
-  for p $ps {
-    if (has-value $xs p) {
-      put $true
+fn find-any [haystack needles fallback]{
+  for p $needles {
+    if (in $p $haystack) {
+      put $p
       return
     }
   }
-  put $false
+  put $fallback
+}
+
+fn has-any [haystack needles]{
+  fb = { } # Closures are always unique
+  not-eq $fb (find-any $haystack $needles $fb)
 }
 
 # Completion utilities.
@@ -233,7 +238,7 @@ fn complete-add [@words]{
     complete-flags checkout
   } else {
     @ls-files-opts = --others --modified --directory --no-empty-directory
-    if (has-any-value $words[:-1] [-u --update]) {
+    if (has-any $words[:-1] [-u --update]) {
       @ls-files-opts = --modified
     }
     complete-index-file $cur $ls-files-opts
@@ -283,6 +288,26 @@ fn complete-archive [@words]{
   }
 }
 
+@bisect-subcmds = start bad good skip reset visualize replay log run
+
+fn complete-bisect [@words]{
+  complete-filename-after-doubledash $words[:-1]
+  subcmd = (find-any $words[:-1] $bisect-subcmds $false)
+  if $subcmd {
+    if (in $subcmd [bad good reset skip start]) {
+      complete-refs $words[-1]
+    } else {
+      edit:complete-filename $words[-1]
+    }
+  } else {
+    if (has-file (repo-path)/BISECT_START) {
+      put $@bisect-subcmds
+    } else {
+      put replay start
+    }
+  }
+}
+
 fn complete-checkout [@words]{
   complete-filename-after-doubledash $words[:-1]
   cur = $words[-1]
@@ -292,7 +317,7 @@ fn complete-checkout [@words]{
     complete-flags checkout
   } else {
     track = (and $checkout-propose-remote-branch \
-                 (not (has-any-value $words [--track --no-track --no-guess])))
+                 (not (has-any $words [--track --no-track --no-guess])))
     complete-refs $cur &track=$track
   }
 }
@@ -302,6 +327,7 @@ subcmd-completer = [
   &am=       $complete-am~
   &apply=    $complete-apply~
   &archive=  $complete-archive~
+  &bisect=   $complete-bisect~
   &checkout= $complete-checkout~
 ]
 
