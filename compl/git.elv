@@ -5,7 +5,7 @@
 
 # WIP. Currently supports:
 # * Global flags (e.g. --version)
-# * git checkout: flags, refs and filenames after "--"
+# * Some subcommands; see subcmd-completer below for a up-to-date list.
 # * All other commands fall back to filename completion.
 
 use re
