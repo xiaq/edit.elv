@@ -184,7 +184,8 @@ fn complete-refs [seed &track=$false]{
 # TODO(xiaq): This doesn't support the signature syntax of pathspec.
 fn complete-index-file [seed ls-files-opts]{
   git-cd=(dirname $seed) call-git -c core.quotePath=false ls-files \
-    --exclude-standard $@ls-files-opts | re:replace '/.*$' '' (all) | dedup
+      --exclude-standard $@ls-files-opts |
+    each [p]{ re:replace '/.*$' '' $p} | dedup
 }
 
 fn complete-committable-file [seed]{
