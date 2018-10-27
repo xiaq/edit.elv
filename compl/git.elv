@@ -22,15 +22,31 @@ checkout-propose-remote-branch = $true
 fn in [x xs]{ has-value $xs $x }
 fn inc [x]{ + $x 1 }
 fn dec [x]{ - $x 1 }
+
+fn has-file [path]{ put ?(test -e $path) }
+fn has-dir  [path]{ put ?(test -d $path) }
+
+fn dedup {
+  m = [&]
+  each [x]{ m[$x] = $true }
+  keys $m
+}
+
 fn without [@exclude]{
   each [x]{ if (not (in $x $exclude)) { put $x } }
 }
+
 fn dirname [p]{
   if (has-value $p /) {
     re:replace '/[^/]*$' '' $p
   } else {
     put .
   }
+}
+
+fn dir-file [p]{
+  i = (+ 1 (str:last-index $p /)) # i = 0 if there is no / in $p
+  put $p[:$i $i':']
 }
 
 fn has-any-value [xs ps]{
@@ -42,9 +58,6 @@ fn has-any-value [xs ps]{
   }
   put $false
 }
-
-fn has-file [path]{ put ?(test -e $path) }
-fn has-dir  [path]{ put ?(test -d $path) }
 
 # Completion utilities.
 
@@ -148,6 +161,9 @@ fn complete-refs-inner [seed &track=$false]{
   }
 }
 
+# Used to complete:
+# <branch>, <commit> and <tree-ish> of git checkout
+#
 # TODO(xiaq): Support &remote
 fn complete-refs [seed &track=$false]{
   if (has-prefix $seed '^') {
@@ -157,10 +173,13 @@ fn complete-refs [seed &track=$false]{
   }
 }
 
-# TODO(xiaq): Deduplicate results.
+# Used to complete:
+# <pathspec> of git add
+#
+# TODO(xiaq): This doesn't support the signature syntax of pathspec.
 fn complete-index-file [seed ls-files-opts]{
-  git-cd=(dirname $seed) call-git -c core.quotePath=false \
-    ls-files --exclude-standard $@ls-files-opts | re:replace '/.*$' '' (all)
+  git-cd=(dirname $seed) call-git -c core.quotePath=false ls-files \
+    --exclude-standard $@ls-files-opts | re:replace '/.*$' '' (all) | dedup
 }
 
 fn complete-committable-file [seed]{
@@ -168,8 +187,38 @@ fn complete-committable-file [seed]{
     diff-index --name-only --relative HEAD
 }
 
+# Used to complete:
+# <tree-ish> of git archive
+#
+# TODO(xiaq): Maybe this should be called complete-tree-ish instead?
 fn complete-revlist-file [seed]{
-  # TODO
+  @a = (splits : &max=2 $seed)
+  if (and (eq (count $a) 2) (not-eq $a[0] '')) {
+    # Complete <rev>:<path>
+    if (str:contains $a[0] ..) {
+      # <rev> cannot be range. The bash script implicitly fall backs to
+      # filename in this case, which doesn't seem to be intended
+      return
+    }
+    rev path = $@a
+    dir _ = (dir-file $path)
+    call-git ls-tree $rev':'$dir | each [line]{
+      filename = (splits "\t" &max=2 $line | drop 1)
+      put $rev':'$dir$filename
+    }
+  } elif (str:contains $seed ..) {
+    prefix cur = '' ''
+    if (str:contains $seed ...) {
+      rev1 rev2 = (splits ... &max=2 $seed)
+      prefix cur = $rev1... $rev2
+    } else {
+      rev1 rev2 = (splits .. &max=2 $seed)
+      prefix cur = $rev1.. $rev2
+    }
+    put $prefix(complete-refs $cur)
+  } else {
+    complete-refs $seed
+  }
 }
 
 fn complete-remotes {
@@ -252,6 +301,7 @@ subcmd-completer = [
   &add=      $complete-add~
   &am=       $complete-am~
   &apply=    $complete-apply~
+  &archive=  $complete-archive~
   &checkout= $complete-checkout~
 ]
 
