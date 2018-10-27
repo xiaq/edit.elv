@@ -20,6 +20,7 @@ checkout-propose-remote-branch = $true
 # General utilities. Maybe some of those should be builtins eventually.
 
 fn in [x xs]{ has-value $xs $x }
+fn len [x]{ count $x }
 fn inc [x]{ + $x 1 }
 fn dec [x]{ - $x 1 }
 
@@ -54,6 +55,16 @@ fn find-any [haystack needles fallback]{
 fn has-any [haystack needles]{
   fb = { } # Closures are always unique
   not-eq $fb (find-any $haystack $needles $fb)
+}
+
+fn find-any-prefix [s prefixes]{
+  for p $prefixes {
+    if (has-prefix $s $p) {
+      put $p
+      return
+    }
+  }
+  put $false
 }
 
 # Completion utilities.
@@ -196,7 +207,7 @@ fn complete-committable-file [seed]{
 # TODO(xiaq): Maybe this should be called complete-tree-ish instead?
 fn complete-revlist-file [seed]{
   @a = (splits : &max=2 $seed)
-  if (and (eq (count $a) 2) (not-eq $a[0] '')) {
+  if (and (eq (len $a) 2) (not-eq $a[0] '')) {
     # Complete <rev>:<path>
     if (str:contains $a[0] ..) {
       # <rev> cannot be range. The bash script implicitly fall backs to
@@ -311,7 +322,7 @@ fn complete-branch [@words]{
 
   opt = --set-upstream-to=
   if (has-prefix $cur $opt) {
-    put $opt(complete-refs $cur[(count $opt):])
+    put $opt(complete-refs $cur[(len $opt):])
   } elif (has-prefix $cur --) {
     complete-flags branch
   } else {
@@ -326,7 +337,7 @@ fn complete-branch [@words]{
 }
 
 fn complete-bundle [@words]{
-  n = (count $words)
+  n = (len $words)
   if (eq $n 3) {
     put create list-heads verify unbundle
   } elif (eq $n 4) {
@@ -352,15 +363,86 @@ fn complete-checkout [@words]{
   }
 }
 
+fn complete-cherry [@words]{
+  cur = $words[-1]
+  if (has-prefix $cur --) {
+    complete-flags cherry
+  } else {
+    complete-refs $cur
+  }
+}
+
+@cherry-pick-in-progress-options = --continue --quit --abort
+
+fn complete-cherry-pick [@words]{
+  if (has-file (repo-path)/CHERRY_PICK_HEAD) {
+    put $@cherry-pick-in-progress-options
+  }
+  cur = $words[-1]
+  if (has-prefix $cur --) {
+    complete-flags cherry-pick &exclude=$cherry-pick-in-progress-options
+  } else {
+    complete-refs $cur
+  }
+}
+
+fn complete-clean [@words]{
+  cur = $words[-1]
+  if (has-prefix $cur --) {
+    complete-flags clean
+  } else {
+    complete-index-file $cur [--others --directory]
+  }
+}
+
+fn complete-clone [@words]{
+  cur = $words[-1]
+  if (has-prefix $cur --) {
+    complete-flags clone
+  } else {
+    edit:complete-filename $cur
+  }
+}
+
+fn complete-commit [@words]{
+  if (in $words[-2] [-c -C]) {
+    complete-refs $words[-1]
+    return
+  }
+  cur = $words[-1]
+  ref-opt = (find-any-prefix $cur [--re{use,edit}-message= --fixup= --squash=])
+  if $ref-opt {
+    put $ref-opt(complete-refs $cur[(len $ref-opt):])
+  } elif (has-prefix $cur --cleanup=) {
+    put --cleanup={default,scissors,strip,verbatim,whitespace}
+  } elif (has-prefix $cur --untracked-files=) {
+    put --untracked-files={all,no,normal}
+  } elif (has-prefix $cur --) {
+    complete-flags commit
+  } else {
+    if ?(call-git rev-parse --verify --quite HEAD > /dev/null) {
+      complete-index-file $cur [--committable]
+    } else {
+      # This is the first commit
+      complete-index-file $cur [--cached]
+    }
+  }
+}
+
 subcmd-completer = [
-  &add=      $complete-add~
-  &am=       $complete-am~
-  &apply=    $complete-apply~
-  &archive=  $complete-archive~
-  &bisect=   $complete-bisect~
-  &branch=   $complete-branch~
-  &bundle=   $complete-bundle~
-  &checkout= $complete-checkout~
+  &add=         $complete-add~
+  &am=          $complete-am~
+  &apply=       $complete-apply~
+  &archive=     $complete-archive~
+  &bisect=      $complete-bisect~
+  &branch=      $complete-branch~
+  &bundle=      $complete-bundle~
+  &checkout=    $complete-checkout~
+  &cherry=      $complete-cherry~
+  &cherry-pick= $complete-cherry-pick~
+  &clean=       $complete-clean~
+  &clone=       $complete-clone~
+  &commit=      $complete-commit~
 ]
 
 fn has-subcmd [subcmd]{ has-key $subcmd-completer $subcmd }
@@ -373,10 +455,10 @@ fn complete-git [@words]{
 
   # Look at previous words to determine some environment.
   i = 1
-  while (< $i (- (count $words) 1)) {
+  while (< $i (- (len $words) 1)) {
     word = $words[$i]
     if (has-prefix $word --git-dir=) {
-      git-dir = $word[(count --git-dir=):]
+      git-dir = $word[(len --git-dir=):]
     } elif (eq $word --git-dir) {
       i = (+ $i 1)
       git-dir = $words[$i]
