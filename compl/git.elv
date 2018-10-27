@@ -124,11 +124,19 @@ fn repo-path {
   put $repo-path
 }
 
-# Not declared with fn: the "return" within will exit the calling fn.
-complete-filename-after-doubledash~ = [words]{
+# The do-* functions are not declared with fn: the "return" within will exit
+# the calling fn.
+
+do-filename-after-doubledash~ = [words]{
   if (has-value $words --) {
     edit:complete-filename $words[-1]
     return
+  }
+}
+
+do-opt~ = [opt @values]{
+  if (has-prefix $cur $opt) {
+    put $opt$@values
   }
 }
 
@@ -305,7 +313,7 @@ fn complete-archive [@words]{
 @bisect-subcmds = start bad good skip reset visualize replay log run
 
 fn complete-bisect [@words]{
-  complete-filename-after-doubledash $words[:-1]
+  do-filename-after-doubledash $words[:-1]
   subcmd = (find-any $words[:-1] $bisect-subcmds $false)
   if $subcmd {
     if (in $subcmd [bad good reset skip start]) {
@@ -353,7 +361,7 @@ fn complete-bundle [@words]{
 }
 
 fn complete-checkout [@words]{
-  complete-filename-after-doubledash $words[:-1]
+  do-filename-after-doubledash $words[:-1]
   if (has-prefix $cur --conflict=) {
     put --conflict={diff3 merge}
   } elif (has-prefix $cur --) {
@@ -450,15 +458,15 @@ mergetools-common = [
   gvimdiff xxdiff araxis p4merge bc codecompare]
 
 fn complete-difftool [@words]{
-  complete-filename-after-doubledash
-  if (has-prefix $cur --tool=) {
-    put --tool={$@mergetools-common,kompare}
-  } elif (has-prefix $cur --) {
+  do-filename-after-doubledash $words[:-1]
+  do-opt --tool= $@mergetools-common kompare
+
+  if (has-prefix $cur --) {
     complete-flags difftool &extra=[
       $@diff-common-options --base --cached --ours --theirs --pickaxe-all
       --pickaxe-regex --relative --staged]
   } else {
-    complete-revlist-file
+    complete-revlist-file $cur
   }
 }
 
