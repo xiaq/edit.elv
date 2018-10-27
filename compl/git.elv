@@ -69,7 +69,8 @@ fn find-any-prefix [s prefixes]{
 
 # Completion utilities.
 
-git-dir git-cd repo-path = '' '' '' # Set at the beginning of complete-git.
+# Set at the beginning of complete-git.
+git-dir git-cd repo-path cur = '' '' '' ''
 
 fn call-git [&no-quote=$false @a]{
   flags = []
@@ -221,15 +222,15 @@ fn complete-revlist-file [seed]{
       put $rev':'$dir$filename
     }
   } elif (str:contains $seed ..) {
-    prefix cur = '' ''
+    prefix seed = '' ''
     if (str:contains $seed ...) {
       rev1 rev2 = (splits ... &max=2 $seed)
-      prefix cur = $rev1... $rev2
+      prefix seed = $rev1... $rev2
     } else {
       rev1 rev2 = (splits .. &max=2 $seed)
-      prefix cur = $rev1.. $rev2
+      prefix seed = $rev1.. $rev2
     }
-    put $prefix(complete-refs $cur)
+    put $prefix(complete-refs $seed)
   } else {
     complete-refs $seed
   }
@@ -250,7 +251,6 @@ fn complete-flags-or-refs [subcmd cur]{
 # Subcommand completers.
 
 fn complete-add [@words]{
-  cur = $words[-1]
   if (has-prefix $cur --) {
     complete-flags checkout
   } else {
@@ -270,7 +270,6 @@ fn complete-am [@words]{
     return
   }
 
-  cur = $words[-1]
   if (has-prefix $cur --whitespace=) {
     put $@whitespace-opts
   } elif (has-prefix $cur --) {
@@ -281,7 +280,6 @@ fn complete-am [@words]{
 }
 
 fn complete-apply [@words]{
-  cur = $words[-1]
   if (has-prefix $cur --whitespace=) {
     put $@whitespace-opts
   } elif (has-prefix $cur --) {
@@ -292,7 +290,6 @@ fn complete-apply [@words]{
 }
 
 fn complete-archive [@words]{
-  cur = $words[-1]
   if (has-prefix $cur --format=) {
     put --format=(git archive --list)
   } elif (has-prefix $cur --remote=) {
@@ -326,8 +323,6 @@ fn complete-bisect [@words]{
 }
 
 fn complete-branch [@words]{
-  cur = $words[-1]
-
   opt = --set-upstream-to=
   if (has-prefix $cur $opt) {
     put $opt(complete-refs $cur[(len $opt):])
@@ -359,7 +354,6 @@ fn complete-bundle [@words]{
 
 fn complete-checkout [@words]{
   complete-filename-after-doubledash $words[:-1]
-  cur = $words[-1]
   if (has-prefix $cur --conflict=) {
     put --conflict={diff3 merge}
   } elif (has-prefix $cur --) {
@@ -381,7 +375,6 @@ fn complete-cherry-pick [@words]{
   if (has-file (repo-path)/CHERRY_PICK_HEAD) {
     put $@cherry-pick-in-progress-options
   }
-  cur = $words[-1]
   if (has-prefix $cur --) {
     complete-flags cherry-pick &exclude=$cherry-pick-in-progress-options
   } else {
@@ -390,7 +383,6 @@ fn complete-cherry-pick [@words]{
 }
 
 fn complete-clean [@words]{
-  cur = $words[-1]
   if (has-prefix $cur --) {
     complete-flags clean
   } else {
@@ -399,7 +391,6 @@ fn complete-clean [@words]{
 }
 
 fn complete-clone [@words]{
-  cur = $words[-1]
   if (has-prefix $cur --) {
     complete-flags clone
   } else {
@@ -412,7 +403,6 @@ fn complete-commit [@words]{
     complete-refs $words[-1]
     return
   }
-  cur = $words[-1]
   ref-opt = (find-any-prefix $cur [--re{use,edit}-message= --fixup= --squash=])
   if $ref-opt {
     put $ref-opt(complete-refs $cur[(len $ref-opt):])
@@ -461,7 +451,6 @@ mergetools-common = [
 
 fn complete-difftool [@words]{
   complete-filename-after-doubledash
-  cur = $words[-1]
   if (has-prefix $cur --tool=) {
     put --tool={$@mergetools-common,kompare}
   } elif (has-prefix $cur --) {
@@ -498,6 +487,7 @@ fn has-subcmd [subcmd]{ has-key $subcmd-completer $subcmd }
 fn complete-git [@words]{
   git-dir git-cd repo-path = '' '' ''
   command = ''
+  cur = $words[-1]
 
   # Look at previous words to determine some environment.
   i = 1
