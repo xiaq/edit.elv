@@ -461,10 +461,6 @@ diff-common-options = [
   --dirstat --dirstat= --dirstat-by-file --dirstat-by-file= --cumulative
   --diff-algorithm= --submodule --submodule= --ignore-submodules]
 
-fn complete-diff [@words]{
-  # TODO
-}
-
 mergetools-common = [
   diffuse diffmerge ecmerge emerge kdiff3 meld opendiff tkdiff vimdiff
   gvimdiff xxdiff araxis p4merge bc codecompare]
