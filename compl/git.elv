@@ -239,6 +239,14 @@ fn complete-remotes {
   # TODO
 }
 
+fn complete-flags-or-refs [subcmd cur]{
+  if (has-prefix $cur --) {
+    complete-flags $subcmd
+  } else {
+    complete-refs $cur
+  }
+}
+
 # Subcommand completers.
 
 fn complete-add [@words]{
@@ -364,12 +372,7 @@ fn complete-checkout [@words]{
 }
 
 fn complete-cherry [@words]{
-  cur = $words[-1]
-  if (has-prefix $cur --) {
-    complete-flags cherry
-  } else {
-    complete-refs $cur
-  }
+  complete-flags-or-refs cherry $words[-1]
 }
 
 @cherry-pick-in-progress-options = --continue --quit --abort
@@ -429,6 +432,47 @@ fn complete-commit [@words]{
   }
 }
 
+fn complete-config [@words]{
+  # TODO
+}
+
+fn complete-describe [@words]{
+  complete-flags-or-refs describe $words[-1]
+}
+
+diff-common-options = [
+  --stat --numstat --shortstat --summary --patch-with-stat --name-only
+  --name-status --color --no-color --color-words --no-renames --check
+  --full-index --binary --abbrev --diff-filter= --find-copies-harder
+  --ignore-cr-at-eol --text --ignore-space-at-eol --ignore-space-change
+  --ignore-all-space --ignore-blank-lines --exit-code --quiet --ext-diff
+  --no-ext-diff --no-prefix --src-prefix= --dst-prefix= --inter-hunk-context=
+  --patience --histogram --minimal --raw --word-diff --word-diff-regex=
+  --dirstat --dirstat= --dirstat-by-file --dirstat-by-file= --cumulative
+  --diff-algorithm= --submodule --submodule= --ignore-submodules]
+
+fn complete-diff [@words]{
+  # TODO
+}
+
+mergetools-common = [
+  diffuse diffmerge ecmerge emerge kdiff3 meld opendiff tkdiff vimdiff
+  gvimdiff xxdiff araxis p4merge bc codecompare]
+
+fn complete-difftool [@words]{
+  complete-filename-after-doubledash
+  cur = $words[-1]
+  if (has-prefix $cur --tool=) {
+    put --tool={$@mergetools-common,kompare}
+  } elif (has-prefix $cur --) {
+    complete-flags difftool &extra=[
+      $@diff-common-options --base --cached --ours --theirs --pickaxe-all
+      --pickaxe-regex --relative --staged]
+  } else {
+    complete-revlist-file
+  }
+}
+
 subcmd-completer = [
   &add=         $complete-add~
   &am=          $complete-am~
@@ -443,6 +487,8 @@ subcmd-completer = [
   &clean=       $complete-clean~
   &clone=       $complete-clone~
   &commit=      $complete-commit~
+  &describe=    $complete-describe~
+  &difftool=    $complete-difftool~
 ]
 
 fn has-subcmd [subcmd]{ has-key $subcmd-completer $subcmd }
