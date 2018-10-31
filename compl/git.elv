@@ -134,6 +134,13 @@ do-filename-after-doubledash~ = [words]{
   }
 }
 
+do-opt-cb~ = [opt cb]{
+  if (has-prefix $cur $opt) {
+    put $opt($cb $cur[(len $opt):])
+    return
+  }
+}
+
 do-opt~ = [opt @values]{
   if (has-prefix $cur $opt) {
     put $opt$@values
@@ -260,14 +267,6 @@ fn complete-remote-or-refspec {
   # TODO
 }
 
-fn complete-flag-or-ref [subcmd cur]{
-  if (has-prefix $cur --) {
-    complete-flag $subcmd
-  } else {
-    complete-ref $cur
-  }
-}
-
 # Subcommand completers.
 
 fn complete-add [@words]{
@@ -301,11 +300,10 @@ fn complete-apply [@words]{
 }
 
 fn complete-archive [@words]{
-  if (has-prefix $cur --format=) {
-    put --format=(git archive --list)
-  } elif (has-prefix $cur --remote=) {
-    put --remote=(complete-remote)
-  } elif (has-prefix $cur --) {
+  do-opt-cb --format= [_]{ git archive --list }
+  do-opt-cb --remote= [_]{ complete-remote }
+
+  if (has-prefix $cur --) {
     # It's not clear why complete-flag is not used here.
     put --format= --list --verbose --prefix= --remote= --exec= --output
   } else {
@@ -334,19 +332,15 @@ fn complete-bisect [@words]{
 }
 
 fn complete-branch [@words]{
-  opt = --set-upstream-to=
-  if (has-prefix $cur $opt) {
-    put $opt(complete-ref $cur[(len $opt):])
-  } elif (has-prefix $cur --) {
-    complete-flag branch
+  do-opt-cb --set-upstream-to= [seed]{ complete-ref $seed }
+  do-flag branch
+
+  local  = (has-any $words[:-1] [-d --delete -m --move])
+  remote = (has-any $words[:-1] [-r --remotes])
+  if (and $local (not $remote)) {
+    complete-head
   } else {
-    local  = (has-any $words[:-1] [-d --delete -m --move])
-    remote = (has-any $words[:-1] [-r --remotes])
-    if (and $local (not $remote)) {
-      complete-head
-    } else {
-      complete-ref $cur
-    }
+    complete-ref $cur
   }
 }
 
@@ -373,7 +367,8 @@ fn complete-checkout [@words]{
 }
 
 fn complete-cherry [@words]{
-  complete-flag-or-ref cherry $words[-1]
+  do-flag cherry
+  complete-ref $cur
 }
 
 @cherry-pick-in-progress-options = --continue --quit --abort
@@ -404,19 +399,17 @@ fn complete-commit [@words]{
   ref-opt = (find-any-prefix $cur [--re{use,edit}-message= --fixup= --squash=])
   if $ref-opt {
     put $ref-opt(complete-ref $cur[(len $ref-opt):])
-  } elif (has-prefix $cur --cleanup=) {
-    put --cleanup={default,scissors,strip,verbatim,whitespace}
-  } elif (has-prefix $cur --untracked-files=) {
-    put --untracked-files={all,no,normal}
-  } elif (has-prefix $cur --) {
-    complete-flag commit
+    return
+  }
+  do-opt --cleanup= default scissors strip verbatim whitespace
+  do-opt --untracked-files= all no normal
+  do-flag commit
+
+  if ?(call-git rev-parse --verify --quite HEAD > /dev/null) {
+    complete-committable-file $cur
   } else {
-    if ?(call-git rev-parse --verify --quite HEAD > /dev/null) {
-      complete-committable-file $cur
-    } else {
-      # This is the first commit
-      complete-index-file $cur [--cached]
-    }
+    # This is the first commit
+    complete-index-file $cur [--cached]
   }
 }
 
@@ -425,7 +418,8 @@ fn complete-config [@words]{
 }
 
 fn complete-describe [@words]{
-  complete-flag-or-ref describe $words[-1]
+  do-flag describe
+  complete-ref $cur
 }
 
 diff-common-options = [
