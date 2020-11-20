@@ -159,7 +159,7 @@ fn complete-subcmd {
 fn complete-flag [subcmd &extra=[] &exclude=[]]{
   {
     call-git $subcmd --git-completion-helper | str:trim-space (all) | splits ' ' (all)
-    explode $extra
+    all $extra
   } | without -- $@exclude
 }
 
@@ -563,7 +563,7 @@ fn complete-git [@words]{
       return
     }
     if (has-prefix $cur --) {
-      explode [--paginate --no-pager --git-dir= --bare --version
+      all [--paginate --no-pager --git-dir= --bare --version
                --exec-path --exec-path= --html-path --man-path --info-path
                --work-tree= --namespace= --no-replace-objects --help]
     } else {

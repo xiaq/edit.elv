@@ -94,7 +94,7 @@ fn env-vars {
     if (eq $cached-env-vars '') {
         cached-env-vars = [(keys (go env -json | from-json))]
     }
-    explode $cached-env-vars
+    all $cached-env-vars
 }
 
 cached-tools = ''
@@ -102,7 +102,7 @@ fn tools {
     if (eq $cached-tools '') {
         cached-tools = [(go tool)]
     }
-    explode $cached-tools
+    all $cached-tools
 }
 
 fn -is-flag [f]{
@@ -277,7 +277,7 @@ fn compl [@words]{
     if (== $n 2) {
         subcmds
     } elif (> $n 2) {
-        $subcmd[$words[1]] (explode $words[2:])
+        $subcmd[$words[1]] (all $words[2:])
     }
 }
 
