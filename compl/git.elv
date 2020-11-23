@@ -2,6 +2,10 @@
 # https://github.com/git/git/blob/master/contrib/completion/git-completion.bash.
 #
 # License is the same as the bash script, i.e. GPLv2.
+#
+# Use with:
+#   use github.com/xiaq/edit.elv/compl/git
+#   git:apply
 
 # WIP. Currently supports:
 # * Global flags (e.g. --version)
