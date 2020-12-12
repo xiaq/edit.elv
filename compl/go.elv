@@ -6,12 +6,14 @@
 # use github.com/xiaq/edit.elv/compl/go
 # go:apply
 
+use re
+
 fn spaces [n]{
     repeat $n ' ' | joins ''
 }
 
 fn cand [text desc]{
-    edit:complex-candidate $text &display-suffix=' '(spaces (- 14 (wcswidth $text)))$desc
+    edit:complex-candidate $text &display=' '(spaces (- 14 (wcswidth $text)))$desc
 }
 
 subcmds~ = (constantly (
@@ -69,9 +71,9 @@ fn -go-paths {
         if (eq $-go-path-out-cache '') {
             -go-path-out-cache = (go env GOPATH | slurp)
         }
-        splits : $-go-path-out-cache
+        re:split : $-go-path-out-cache
     } else {
-        splits : $E:GOPATH
+        re:split : $E:GOPATH
     }
 }
 
