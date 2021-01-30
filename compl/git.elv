@@ -63,7 +63,7 @@ fn has-any [haystack needles]{
 
 fn find-any-prefix [s prefixes]{
   for p $prefixes {
-    if (has-prefix $s $p) {
+    if (str:has-prefix $s $p) {
       put $p
       return
     }
@@ -97,9 +97,9 @@ fn expand-alias [subcmd]{
     if (in $word [gitk !gitk]) {
       put gitk
       return
-    } elif (has-prefix $word !) {
+    } elif (str:has-prefix $word !) {
       # Shell command alias, skip
-    } elif (has-prefix $word -) {
+    } elif (str:has-prefix $word -) {
       # Option, skip
     } elif (has-value $word '=') {
       # Environment, skip
@@ -109,7 +109,7 @@ fn expand-alias [subcmd]{
       # Function definition, skip
     } elif (eq $word :) {
       # Nop, skip
-    } elif (has-prefix $word "'") {
+    } elif (str:has-prefix $word "'") {
       # Opening quote after sh -c, skip
       # XXX(xiaq): It's not clear how this works.
     } else {
@@ -139,14 +139,14 @@ do-filename-after-doubledash~ = [words]{
 }
 
 do-opt-cb~ = [opt cb]{
-  if (has-prefix $cur $opt) {
+  if (str:has-prefix $cur $opt) {
     put $opt($cb $cur[(len $opt):])
     return
   }
 }
 
 do-opt~ = [opt @values]{
-  if (has-prefix $cur $opt) {
+  if (str:has-prefix $cur $opt) {
     put $opt$@values
     return
   }
@@ -168,7 +168,7 @@ fn complete-flag [subcmd &extra=[] &exclude=[]]{
 }
 
 do-flag~ = [subcmd &extra=[] &exclude=[]]{
-  if (has-prefix $cur --) {
+  if (str:has-prefix $cur --) {
     complete-flag $subcmd &extra=$extra &exclude=$exclude
     return
   }
@@ -180,7 +180,7 @@ do-flag~ = [subcmd &extra=[] &exclude=[]]{
 # twice, once from the expansion of HEADs, once from refs/remotes/origin/HEAD.
 fn complete-ref-inner [seed &track=$false]{
   format = ''
-  if (or (eq $seed refs) (has-prefix $seed refs/)) {
+  if (or (eq $seed refs) (str:has-prefix $seed refs/)) {
     # The user is spelling out a full refname, so we don't abbreviate.
     format = refname
   } else {
@@ -203,7 +203,7 @@ fn complete-ref-inner [seed &track=$false]{
 #
 # TODO(xiaq): Support &remote
 fn complete-ref [seed &track=$false]{
-  if (has-prefix $seed '^') {
+  if (str:has-prefix $seed '^') {
     put '^'(complete-ref-inner &track=$track)
   } else {
     complete-ref-inner $seed &track=$track
@@ -307,7 +307,7 @@ fn complete-archive [@words]{
   do-opt-cb --format= [_]{ git archive --list }
   do-opt-cb --remote= [_]{ complete-remote }
 
-  if (has-prefix $cur --) {
+  if (str:has-prefix $cur --) {
     # It's not clear why complete-flag is not used here.
     put --format= --list --verbose --prefix= --remote= --exec= --output
   } else {
@@ -474,7 +474,7 @@ fn complete-fsck [@words]{
 fn complete-grep [@words]{
   do-filename-after-doubledash $words[:-1]
   do-flag grep
-  if (or (eq 3 (len $words)) (has-prefix $words[-2] -)) {
+  if (or (eq 3 (len $words)) (str:has-prefix $words[-2] -)) {
     # complete-symbol # TODO
   }
   complete-ref $words[-1]
@@ -536,7 +536,7 @@ fn complete-git [@words]{
   i = 1
   while (< $i (- (len $words) 1)) {
     word = $words[$i]
-    if (has-prefix $word --git-dir=) {
+    if (str:has-prefix $word --git-dir=) {
       git-dir = $word[(len --git-dir=):]
     } elif (eq $word --git-dir) {
       i = (+ $i 1)
@@ -548,7 +548,7 @@ fn complete-git [@words]{
       break
     } elif (in $word [-c --work-tree --namespace]) {
       i = (+ $i 1) # Skip over next word
-    } elif (has-prefix $word -) {
+    } elif (str:has-prefix $word -) {
       # Ignore other flags for now
     } else {
       command = $word
@@ -566,7 +566,7 @@ fn complete-git [@words]{
       # Completion not supported
       return
     }
-    if (has-prefix $cur --) {
+    if (str:has-prefix $cur --) {
       all [--paginate --no-pager --git-dir= --bare --version
                --exec-path --exec-path= --html-path --man-path --info-path
                --work-tree= --namespace= --no-replace-objects --help]

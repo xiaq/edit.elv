@@ -6,12 +6,16 @@
 # use github.com/xiaq/edit.elv/compl/go
 # go:apply
 
+use path
+use re
+use str
+
 fn spaces [n]{
-    repeat $n ' ' | joins ''
+    repeat $n ' ' | str:join ''
 }
 
 fn cand [text desc]{
-    edit:complex-candidate $text &display-suffix=' '(spaces (- 14 (wcswidth $text)))$desc
+    edit:complex-candidate $text &display=' '(spaces (- 14 (wcswidth $text)))$desc
 }
 
 subcmds~ = (constantly (
@@ -56,11 +60,11 @@ build-flags~ = (constantly (
 ))
 
 fn go-files [f]{
-    put (path-dir $f)/*.go
+    put (path:dir $f)/*.go
 }
 
 fn pick-dirs {
-    each [x]{ if (-is-dir $x) { put $x/ } }
+    each [x]{ if (path:is-dir $x) { put $x/ } }
 }
 
 -go-path-out-cache = ''
@@ -69,17 +73,17 @@ fn -go-paths {
         if (eq $-go-path-out-cache '') {
             -go-path-out-cache = (go env GOPATH | slurp)
         }
-        splits : $-go-path-out-cache
+        re:split : $-go-path-out-cache
     } else {
-        splits : $E:GOPATH
+        re:split : $E:GOPATH
     }
 }
 
 fn pkgs [f]{
-    if (has-prefix $f .) {
-        put (path-dir $f)/* | pick-dirs
+    if (str:has-prefix $f .) {
+        put (path:dir $f)/* | pick-dirs
     } else {
-        dir = (path-dir $f)/
+        dir = (path:dir $f)/
         if (eq $dir ./) {
             dir = ''
         }
@@ -106,7 +110,7 @@ fn tools {
 }
 
 fn -is-flag [f]{
-    has-prefix $f -
+    str:has-prefix $f -
 }
 
 subcmd = [
