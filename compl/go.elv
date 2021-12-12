@@ -10,15 +10,15 @@ use path
 use re
 use str
 
-fn spaces [n]{
+fn spaces {|n|
     repeat $n ' ' | str:join ''
 }
 
-fn cand [text desc]{
+fn cand {|text desc|
     edit:complex-candidate $text &display=' '(spaces (- 14 (wcswidth $text)))$desc
 }
 
-subcmds~ = (constantly (
+var subcmds~ = (constantly (
     cand build       "compile packages and dependencies"
     cand clean       "remove object files"
     cand doc         "show documentation for package or symbol"
@@ -37,7 +37,7 @@ subcmds~ = (constantly (
     cand vet         "run go tool vet on packages"
 ))
 
-build-flags~ = (constantly (
+var build-flags~ = (constantly (
     cand -a             "force rebuilding of packages that are already up-to-date"
     cand -n             "print the commands but do not run them"
     cand -p             "the number of programs that can be run in parallel"
@@ -59,19 +59,19 @@ build-flags~ = (constantly (
     cand -toolexec      "a program to use to invoke toolchain programs like vet and asm"
 ))
 
-fn go-files [f]{
+fn go-files {|f|
     put (path:dir $f)/*.go
 }
 
 fn pick-dirs {
-    each [x]{ if (path:is-dir $x) { put $x/ } }
+    each {|x| if (path:is-dir $x) { put $x/ } }
 }
 
--go-path-out-cache = ''
+var -go-path-out-cache = ''
 fn -go-paths {
     if (eq $E:GOPATH '') {
         if (eq $-go-path-out-cache '') {
-            -go-path-out-cache = (go env GOPATH | slurp)
+            set -go-path-out-cache = (go env GOPATH | slurp)
         }
         re:split : $-go-path-out-cache
     } else {
@@ -79,43 +79,43 @@ fn -go-paths {
     }
 }
 
-fn pkgs [f]{
+fn pkgs {|f|
     if (str:has-prefix $f .) {
         put (path:dir $f)/* | pick-dirs
     } else {
-        dir = (path:dir $f)/
+        var dir = (path:dir $f)/
         if (eq $dir ./) {
-            dir = ''
+            set dir = ''
         }
         for go-src [(-go-paths)/src] {
-            put $go-src/$dir* | pick-dirs | each [x]{ put $x[(count $go-src/):] }
+            put $go-src/$dir* | pick-dirs | each {|x| put $x[(count $go-src/):] }
         }
     }
 }
 
-cached-env-vars = ''
+var cached-env-vars = ''
 fn env-vars {
     if (eq $cached-env-vars '') {
-        cached-env-vars = [(keys (go env -json | from-json))]
+        set cached-env-vars = [(keys (go env -json | from-json))]
     }
     all $cached-env-vars
 }
 
-cached-tools = ''
+var cached-tools = ''
 fn tools {
     if (eq $cached-tools '') {
-        cached-tools = [(go tool)]
+        set cached-tools = [(go tool)]
     }
     all $cached-tools
 }
 
-fn -is-flag [f]{
+fn -is-flag {|f|
     str:has-prefix $f -
 }
 
-subcmd = [
-    &build=[@args]{
-        current = $args[-1]
+var subcmd = [
+    &build={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             build-flags
             cand -o "write the resulting executable or object to the named output file"
@@ -126,8 +126,8 @@ subcmd = [
         }
     }
 
-    &clean=[@args]{
-        current = $args[-1]
+    &clean={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             build-flags
             cand -i "remove the corresponding installed archive or binary (what 'go install' would create)"
@@ -139,8 +139,8 @@ subcmd = [
         }
     }
 
-    &doc=[@args]{
-        current = $args[-1]
+    &doc={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             cand -c   'Respect case when matching symbols'
             cand -cmd 'Treat a command (package main) like a regular package'
@@ -150,8 +150,8 @@ subcmd = [
         }
     }
 
-    &env=[@args]{
-        current = $args[-1]
+    &env={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             cand -json 'prints the environment in JSON format instead of as a shell script'
         } else {
@@ -159,19 +159,19 @@ subcmd = [
         }
     }
 
-    &bug=[@args]{
+    &bug={|@args|
         # This subcommand takes no arguments.
     }
 
-    &fix=[@args]{
-        current = $args[-1]
+    &fix={|@args|
+        var current = $args[-1]
         if (not (-is-flag $current)) {
             pkgs $current
         }
     }
 
-    &fmt=[@args]{
-        current = $args[-1]
+    &fmt={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             cand -n "print commands that would be executed"
             cand -x "print commands as they are executed"
@@ -180,8 +180,8 @@ subcmd = [
         }
     }
 
-    &generate=[@args]{
-        current = $args[-1]
+    &generate={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             cand -run "a regular expression to select directives"
             build-flags
@@ -191,8 +191,8 @@ subcmd = [
         }
     }
 
-    &get=[@args]{
-        current = $args[-1]
+    &get={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             cand -d        "stop after downloading the packages; that is, it instructs get not to install the packages"
             cand -f        "force get -u not to verify that each package has been checked out from the source control repository implied by its import path"
@@ -206,8 +206,8 @@ subcmd = [
         }
     }
 
-    &install=[@args]{
-        current = $args[-1]
+    &install={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             build-flags
         } else {
@@ -215,8 +215,8 @@ subcmd = [
         }
     }
 
-    &list=[@args]{
-        current = $args[-1]
+    &list={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             build-flags
             cand -f    "specify an alternate format for the list, using the syntax of package template"
@@ -227,8 +227,8 @@ subcmd = [
         }
     }
 
-    &run=[@args]{
-        current = $args[-1]
+    &run={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             cand -exec "invoke the binary using a program"
             build-flags
@@ -237,8 +237,8 @@ subcmd = [
         }
     }
 
-    &test=[@args]{
-        current = $args[-1]
+    &test={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             cand -args "Pass the remainder of the command line (everything after -args) to the test binary, uninterpreted and unchanged"
             cand -c    "Compile the test binary to pkg.test but do not run it"
@@ -251,8 +251,8 @@ subcmd = [
         }
     }
 
-    &tool=[@args]{
-        current = $args[-1]
+    &tool={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             cand -n "print the command that would be executed but not execute it"
         } else {
@@ -260,12 +260,12 @@ subcmd = [
         }
     }
 
-    &version=[@args]{
+    &version={|@args|
         # This subcommand takes no arguments.
     }
 
-    &vet=[@args]{
-        current = $args[-1]
+    &vet={|@args|
+        var current = $args[-1]
         if (-is-flag $current) {
             cand -n "print commands that would be executed"
             cand -x "print commands as they are executed"
@@ -276,8 +276,8 @@ subcmd = [
     }
 ]
 
-fn compl [@words]{
-    n = (count $words)
+fn compl {|@words|
+    var n = (count $words)
     if (== $n 2) {
         subcmds
     } elif (> $n 2) {
@@ -286,5 +286,5 @@ fn compl [@words]{
 }
 
 fn apply {
-    edit:completion:arg-completer[go] = $compl~
+    set edit:completion:arg-completer[go] = $compl~
 }

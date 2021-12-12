@@ -19,34 +19,34 @@ use str
 
 # When completing "git checkout", whether to propose branches that exist in
 # exactly one remote, which will do an implicit "--track <remote>/<branch>".
-checkout-propose-remote-branch = $true
+var checkout-propose-remote-branch = $true
 
 # General utilities. Maybe some of those should be builtins eventually.
 
-fn in [x xs]{ has-value $xs $x }
-fn len [x]{ count $x }
-fn inc [x]{ + $x 1 }
-fn dec [x]{ - $x 1 }
+fn in {|x xs| has-value $xs $x }
+fn len {|x| count $x }
+fn inc {|x| + $x 1 }
+fn dec {|x| - $x 1 }
 
-fn has-file [path]{ put ?(test -e $path) }
-fn has-dir  [path]{ put ?(test -d $path) }
+fn has-file {|path| put ?(test -e $path) }
+fn has-dir  {|path| put ?(test -d $path) }
 
 fn dedup {
-  m = [&]
-  each [x]{ m[$x] = $true }
+  var m = [&]
+  each {|x| set m[$x] = $true }
   keys $m
 }
 
-fn without [@exclude]{
-  each [x]{ if (not (in $x $exclude)) { put $x } }
+fn without {|@exclude|
+  each {|x| if (not (in $x $exclude)) { put $x } }
 }
 
-fn dir-file [p]{
-  i = (+ 1 (str:last-index $p /)) # i = 0 if there is no / in $p
+fn dir-file {|p|
+  var i = (+ 1 (str:last-index $p /)) # i = 0 if there is no / in $p
   put $p[:$i $i':']
 }
 
-fn find-any [haystack needles fallback]{
+fn find-any {|haystack needles fallback|
   for p $needles {
     if (in $p $haystack) {
       put $p
@@ -56,12 +56,12 @@ fn find-any [haystack needles fallback]{
   put $fallback
 }
 
-fn has-any [haystack needles]{
-  fb = { } # Closures are always unique
+fn has-any {|haystack needles|
+  var fb = { } # Closures are always unique
   not-eq $fb (find-any $haystack $needles $fb)
 }
 
-fn find-any-prefix [s prefixes]{
+fn find-any-prefix {|s prefixes|
   for p $prefixes {
     if (str:has-prefix $s $p) {
       put $p
@@ -74,20 +74,20 @@ fn find-any-prefix [s prefixes]{
 # Completion utilities.
 
 # Set at the beginning of complete-git.
-git-dir git-cd repo-path cur = '' '' '' ''
+var git-dir git-cd repo-path cur = '' '' '' ''
 
-fn call-git [&no-quote=$false @a]{
-  flags = []
-  if (not-eq $git-dir '') { @flags = $@flags --git-dir $git-dir }
-  if (not-eq $git-cd '') { @flags = $@flags -C $git-cd }
-  if $no-quote { @flags = $@flags -c core.quotePath=false }
+fn call-git {|&no-quote=$false @a|
+  var flags = []
+  if (not-eq $git-dir '') { set @flags = $@flags --git-dir $git-dir }
+  if (not-eq $git-cd '') { set @flags = $@flags -C $git-cd }
+  if $no-quote { set @flags = $@flags -c core.quotePath=false }
   git $@flags $@a
 }
 
-fn expand-alias [subcmd]{
-  def = ''
+fn expand-alias {|subcmd|
+  var def = ''
   try {
-    @def = (call-git config --get alias.$subcmd | re:split '\s+' (all))
+    set @def = (call-git config --get alias.$subcmd | re:split '\s+' (all))
   } except _ {
     # Not found
     put $subcmd
@@ -122,7 +122,7 @@ fn expand-alias [subcmd]{
 
 fn repo-path {
   if (eq $repo-path '') {
-    repo-path = (call-git rev-parse --absolute-git-dir)
+    set repo-path = (call-git rev-parse --absolute-git-dir)
     # TODO: Implement fast paths
   }
   put $repo-path
@@ -131,21 +131,21 @@ fn repo-path {
 # The do-* functions are not declared with fn: the "return" within will exit
 # the calling fn.
 
-do-filename-after-doubledash~ = [words]{
+var do-filename-after-doubledash~ = {|words|
   if (has-value $words --) {
     edit:complete-filename $words[-1]
     return
   }
 }
 
-do-opt-cb~ = [opt cb]{
+var do-opt-cb~ = {|opt cb|
   if (str:has-prefix $cur $opt) {
     put $opt($cb $cur[(len $opt):])
     return
   }
 }
 
-do-opt~ = [opt @values]{
+var do-opt~ = {|opt @values|
   if (str:has-prefix $cur $opt) {
     put $opt$@values
     return
@@ -160,39 +160,39 @@ fn complete-subcmd {
   git --list-cmds=list-mainporcelain,others,nohelpers,alias,list-complete,config
 }
 
-fn complete-flag [subcmd &extra=[] &exclude=[]]{
+fn complete-flag {|subcmd &extra=[] &exclude=[]|
   {
     call-git $subcmd --git-completion-helper | str:trim-space (all) | splits ' ' (all)
     all $extra
   } | without -- $@exclude
 }
 
-do-flag~ = [subcmd &extra=[] &exclude=[]]{
+var do-flag~ = {|subcmd &extra=[] &exclude=[]|
   if (str:has-prefix $cur --) {
     complete-flag $subcmd &extra=$extra &exclude=$exclude
     return
   }
 }
 
-@HEADs = HEAD FETCH_HEAD ORIG_HEAD MERGE_HEAD REBASE_HEAD
+var @HEADs = HEAD FETCH_HEAD ORIG_HEAD MERGE_HEAD REBASE_HEAD
 
 # TODO(xiaq): Deduplicate. The most common scenerio is that HEAD can appear
 # twice, once from the expansion of HEADs, once from refs/remotes/origin/HEAD.
-fn complete-ref-inner [seed &track=$false]{
-  format = ''
+fn complete-ref-inner {|seed &track=$false|
+  var format = ''
   if (or (eq $seed refs) (str:has-prefix $seed refs/)) {
     # The user is spelling out a full refname, so we don't abbreviate.
-    format = refname
+    set format = refname
   } else {
-    dir = (repo-path)
+    var dir = (repo-path)
     for head $HEADs {
       if (has-file $dir/$head) { put $head }
     }
-    format = refname:strip=2
+    set format = refname:strip=2
   }
   call-git for-each-ref --format='%('$format')' | without ''
   if $track {
-    format = 'refname:strip=3'
+    set format = 'refname:strip=3'
     call-git for-each-ref --format='%('$format')' --sort=$format \
       'refs/remotes/*/*'{,'/**'} | uniq -u
   }
@@ -202,7 +202,7 @@ fn complete-ref-inner [seed &track=$false]{
 # <branch>, <commit> and <tree-ish> of git checkout
 #
 # TODO(xiaq): Support &remote
-fn complete-ref [seed &track=$false]{
+fn complete-ref {|seed &track=$false|
   if (str:has-prefix $seed '^') {
     put '^'(complete-ref-inner &track=$track)
   } else {
@@ -218,14 +218,14 @@ fn complete-head {
 # <pathspec> of git add
 #
 # TODO(xiaq): This doesn't support the signature syntax of pathspec.
-fn complete-index-file [seed ls-files-opts]{
-  dir _ = (dir-file $seed)
+fn complete-index-file {|seed ls-files-opts|
+  var dir; set dir _ = (dir-file $seed)
   git-cd=$dir call-git &no-quote ls-files --exclude-standard $@ls-files-opts |
-    each [p]{ re:replace '/.*$' '' $p} | dedup | put $dir(all)
+    each {|p| re:replace '/.*$' '' $p} | dedup | put $dir(all)
 }
 
-fn complete-committable-file [seed]{
-  dir _ = (dir-file $seed)
+fn complete-committable-file {|seed|
+  var dir; set dir _ = (dir-file $seed)
   git-cd=$dir call-git &no-quote diff-index --name-only --relative HEAD
 }
 
@@ -233,8 +233,8 @@ fn complete-committable-file [seed]{
 # <tree-ish> of git archive
 #
 # TODO(xiaq): Maybe this should be called complete-tree-ish instead?
-fn complete-revlist-file [seed]{
-  @a = (splits : &max=2 $seed)
+fn complete-revlist-file {|seed|
+  var @a = (splits : &max=2 $seed)
   if (and (eq (len $a) 2) (not-eq $a[0] '')) {
     # Complete <rev>:<path>
     if (str:contains $a[0] ..) {
@@ -242,20 +242,20 @@ fn complete-revlist-file [seed]{
       # filename in this case, which doesn't seem to be intended
       return
     }
-    rev path = $@a
-    dir _ = (dir-file $path)
-    call-git ls-tree $rev':'$dir | each [line]{
-      filename = (splits "\t" &max=2 $line | drop 1)
+    var rev path = $@a
+    var dir; set dir _ = (dir-file $path)
+    call-git ls-tree $rev':'$dir | each {|line|
+      var filename = (splits "\t" &max=2 $line | drop 1)
       put $rev':'$dir$filename
     }
   } elif (str:contains $seed ..) {
-    prefix seed = '' ''
+    var prefix; set prefix seed = '' ''
     if (str:contains $seed ...) {
-      rev1 rev2 = (splits ... &max=2 $seed)
-      prefix seed = $rev1... $rev2
+      var rev1 rev2 = (splits ... &max=2 $seed)
+      set prefix seed = $rev1... $rev2
     } else {
-      rev1 rev2 = (splits .. &max=2 $seed)
-      prefix seed = $rev1.. $rev2
+      var rev1 rev2 = (splits .. &max=2 $seed)
+      set prefix seed = $rev1.. $rev2
     }
     put $prefix(complete-ref $seed)
   } else {
@@ -273,20 +273,20 @@ fn complete-remote-or-refspec {
 
 # Subcommand completers.
 
-fn complete-add [@words]{
+fn complete-add {|@words|
   do-flag add
-  @ls-files-opts = --others --modified --directory --no-empty-directory
+  var @ls-files-opts = --others --modified --directory --no-empty-directory
   if (has-any $words[:-1] [-u --update]) {
-    @ls-files-opts = --modified
+    set @ls-files-opts = --modified
   }
   complete-index-file $cur $ls-files-opts
 }
 
-@whitespace-opts = nowarn warn error error-all fix
+var @whitespace-opts = nowarn warn error error-all fix
 
-do-whitespace-opt~ = { do-opt --whitespace= $@whitespace-opts }
+var do-whitespace-opt~ = { do-opt --whitespace= $@whitespace-opts }
 
-fn complete-am [@words]{
+fn complete-am {|@words|
   if (has-dir (repo-path)/rebase-apply ) {
     put --skip --continue --resolved --abort --quit --show-current-path
     return
@@ -297,15 +297,15 @@ fn complete-am [@words]{
   edit:complete-filename $cur
 }
 
-fn complete-apply [@words]{
+fn complete-apply {|@words|
   do-whitespace-opt
   do-flag apply
   edit:complete-filename $cur
 }
 
-fn complete-archive [@words]{
-  do-opt-cb --format= [_]{ git archive --list }
-  do-opt-cb --remote= [_]{ complete-remote }
+fn complete-archive {|@words|
+  do-opt-cb --format= {|_| git archive --list }
+  do-opt-cb --remote= {|_| complete-remote }
 
   if (str:has-prefix $cur --) {
     # It's not clear why complete-flag is not used here.
@@ -315,11 +315,11 @@ fn complete-archive [@words]{
   }
 }
 
-@bisect-subcmds = start bad good skip reset visualize replay log run
+var @bisect-subcmds = start bad good skip reset visualize replay log run
 
-fn complete-bisect [@words]{
+fn complete-bisect {|@words|
   do-filename-after-doubledash $words[:-1]
-  subcmd = (find-any $words[:-1] $bisect-subcmds $false)
+  var subcmd = (find-any $words[:-1] $bisect-subcmds $false)
   if $subcmd {
     if (in $subcmd [bad good reset skip start]) {
       complete-ref $words[-1]
@@ -335,12 +335,12 @@ fn complete-bisect [@words]{
   }
 }
 
-fn complete-branch [@words]{
-  do-opt-cb --set-upstream-to= [seed]{ complete-ref $seed }
+fn complete-branch {|@words|
+  do-opt-cb --set-upstream-to= {|seed| complete-ref $seed }
   do-flag branch
 
-  local  = (has-any $words[:-1] [-d --delete -m --move])
-  remote = (has-any $words[:-1] [-r --remotes])
+  var local  = (has-any $words[:-1] [-d --delete -m --move])
+  var remote = (has-any $words[:-1] [-r --remotes])
   if (and $local (not $remote)) {
     complete-head
   } else {
@@ -348,8 +348,8 @@ fn complete-branch [@words]{
   }
 }
 
-fn complete-bundle [@words]{
-  n = (len $words)
+fn complete-bundle {|@words|
+  var n = (len $words)
   if (eq $n 3) {
     put create list-heads verify unbundle
   } elif (eq $n 4) {
@@ -361,23 +361,23 @@ fn complete-bundle [@words]{
   }
 }
 
-fn complete-checkout [@words]{
+fn complete-checkout {|@words|
   do-filename-after-doubledash $words[:-1]
   do-opt --conflict= diff3 merge
   do-flag checkout
-  track = (and $checkout-propose-remote-branch \
+  var track = (and $checkout-propose-remote-branch \
                (not (has-any $words [--track --no-track --no-guess])))
   complete-ref $cur &track=$track
 }
 
-fn complete-cherry [@words]{
+fn complete-cherry {|@words|
   do-flag cherry
   complete-ref $cur
 }
 
-@cherry-pick-in-progress-options = --continue --quit --abort
+var @cherry-pick-in-progress-options = --continue --quit --abort
 
-fn complete-cherry-pick [@words]{
+fn complete-cherry-pick {|@words|
   if (has-file (repo-path)/CHERRY_PICK_HEAD) {
     put $@cherry-pick-in-progress-options
   }
@@ -385,22 +385,22 @@ fn complete-cherry-pick [@words]{
   complete-ref $cur
 }
 
-fn complete-clean [@words]{
+fn complete-clean {|@words|
   do-flag clean
   complete-index-file $cur [--others --directory]
 }
 
-fn complete-clone [@words]{
+fn complete-clone {|@words|
   do-flag clone
   edit:complete-filename $cur
 }
 
-fn complete-commit [@words]{
+fn complete-commit {|@words|
   if (in $words[-2] [-c -C]) {
     complete-ref $words[-1]
     return
   }
-  ref-opt = (find-any-prefix $cur [--re{use,edit}-message= --fixup= --squash=])
+  var ref-opt = (find-any-prefix $cur [--re{use,edit}-message= --fixup= --squash=])
   if $ref-opt {
     put $ref-opt(complete-ref $cur[(len $ref-opt):])
     return
@@ -417,16 +417,16 @@ fn complete-commit [@words]{
   }
 }
 
-fn complete-config [@words]{
+fn complete-config {|@words|
   # TODO
 }
 
-fn complete-describe [@words]{
+fn complete-describe {|@words|
   do-flag describe
   complete-ref $cur
 }
 
-diff-common-options = [
+var diff-common-options = [
   --stat --numstat --shortstat --summary --patch-with-stat --name-only
   --name-status --color --no-color --color-words --no-renames --check
   --full-index --binary --abbrev --diff-filter= --find-copies-harder
@@ -437,15 +437,15 @@ diff-common-options = [
   --dirstat --dirstat= --dirstat-by-file --dirstat-by-file= --cumulative
   --diff-algorithm= --submodule --submodule= --ignore-submodules]
 
-mergetools-common = [
+var mergetools-common = [
   diffuse diffmerge ecmerge emerge kdiff3 meld opendiff tkdiff vimdiff
   gvimdiff xxdiff araxis p4merge bc codecompare]
 
-fn complete-diff [@words]{
+fn complete-diff {|@words|
   # TODO
 }
 
-fn complete-difftool [@words]{
+fn complete-difftool {|@words|
   do-filename-after-doubledash $words[:-1]
   do-opt --tool= $@mergetools-common kompare
   do-flag difftool &extra=[
@@ -454,24 +454,24 @@ fn complete-difftool [@words]{
   complete-revlist-file $cur
 }
 
-fn complete-fetch [@words]{
+fn complete-fetch {|@words|
   do-opt --recurse-submodules yes on-demand no
   do-flag fetch
   complete-remote-or-refspec # TODO
 }
 
-fn complete-format-patch [@words]{
+fn complete-format-patch {|@words|
   do-opt --thread deep shallow
   do-flag format-patch # The bash completer uses a hardcoded list
   complete-revlist-file
 }
 
-fn complete-fsck [@words]{
+fn complete-fsck {|@words|
   do-flag fsck
   edit:complete-filename $words[-1]
 }
 
-fn complete-grep [@words]{
+fn complete-grep {|@words|
   do-filename-after-doubledash $words[:-1]
   do-flag grep
   if (or (eq 3 (len $words)) (str:has-prefix $words[-2] -)) {
@@ -480,24 +480,24 @@ fn complete-grep [@words]{
   complete-ref $words[-1]
 }
 
-fn complete-help [@words]{
+fn complete-help {|@words|
   do-flag help
   git --list-cmds=main,nohelpers,alias,list-guide
   put gitk
 }
 
-fn complete-init [@words]{
+fn complete-init {|@words|
   do-opt --shared= false true umask group all world everybody
   do-flag init
   edit:complete-filename $words[-1]
 }
 
-fn complete-ls-files [@words]{
+fn complete-ls-files {|@words|
   do-flag ls-files
   complete-index-file $words[-1] [--cached]
 }
 
-subcmd-completer = [
+var subcmd-completer = [
   &add=          $complete-add~
   &am=           $complete-am~
   &apply=        $complete-apply~
@@ -523,42 +523,42 @@ subcmd-completer = [
   &ls-files=     $complete-ls-files~
 ]
 
-fn has-subcmd [subcmd]{ has-key $subcmd-completer $subcmd }
+fn has-subcmd {|subcmd| has-key $subcmd-completer $subcmd }
 
 # The main completer.
 
-fn complete-git [@words]{
-  git-dir git-cd repo-path = '' '' ''
-  command = ''
-  cur = $words[-1]
+fn complete-git {|@words|
+  set git-dir git-cd repo-path = '' '' ''
+  var command = ''
+  set cur = $words[-1]
 
   # Look at previous words to determine some environment.
-  i = 1
+  var i = 1
   while (< $i (- (len $words) 1)) {
-    word = $words[$i]
+    var word = $words[$i]
     if (str:has-prefix $word --git-dir=) {
-      git-dir = $word[(len --git-dir=):]
+      set git-dir = $word[(len --git-dir=):]
     } elif (eq $word --git-dir) {
-      i = (+ $i 1)
-      git-dir = $words[$i]
+      set i = (+ $i 1)
+      set git-dir = $words[$i]
     } elif (eq $word --bare) {
-      git-dir = .
+      set git-dir = .
     } elif (eq $word --help) {
-      command = help
+      set command = help
       break
     } elif (in $word [-c --work-tree --namespace]) {
-      i = (+ $i 1) # Skip over next word
+      set i = (+ $i 1) # Skip over next word
     } elif (str:has-prefix $word -) {
       # Ignore other flags for now
     } else {
-      command = $word
+      set command = $word
       break
     }
-    i = (+ $i 1)
+    set i = (+ $i 1)
   }
 
   if (eq $command '') {
-    prev cur = $words[-2] $words[-1]
+    var prev; set prev cur = $words[-2] $words[-1]
     if (in $prev [--git-dir -C --work-tree]) {
       edit:complete-filename $cur
       return
@@ -577,7 +577,7 @@ fn complete-git [@words]{
   }
 
   if (not (has-subcmd $command)) {
-    command = (expand-alias $command)
+    set command = (expand-alias $command)
   }
   if (has-subcmd $command) {
     $subcmd-completer[$command] $@words
@@ -588,5 +588,5 @@ fn complete-git [@words]{
 }
 
 fn apply {
-  edit:completion:arg-completer[git] = $complete-git~
+  set edit:completion:arg-completer[git] = $complete-git~
 }
