@@ -88,7 +88,7 @@ fn expand-alias {|subcmd|
   var def = ''
   try {
     set @def = (call-git config --get alias.$subcmd | re:split '\s+' (all))
-  } except _ {
+  } catch _ {
     # Not found
     put $subcmd
     return
